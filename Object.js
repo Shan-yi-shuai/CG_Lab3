@@ -43,6 +43,9 @@ class ObjectLoader {
         uniform vec3 u_LightDirection;
         uniform vec3 u_AmbientLight;
         uniform vec3 u_LightPosition;
+
+        uniform vec4 u_Eye;
+        varying float v_Dist;
         void main() {
           gl_Position = u_MvpMatrix * a_Position;
 
@@ -59,6 +62,8 @@ class ObjectLoader {
           vec3 lightDirection = normalize(u_LightPosition - vec3(vertexPosition));
 
           v_Color = vec4(diffuse + ambient, a_Color.a);
+          
+          v_Dist = distance(u_ModelMatrix * a_Position, u_Eye);
         }`;
 
         // Fragment shader program
@@ -67,8 +72,14 @@ class ObjectLoader {
         precision mediump float;
         #endif
         varying vec4 v_Color;
+
+        uniform vec3 u_FogColor;
+        uniform vec2 u_FogDist;
+        varying float v_Dist;
         void main() {
-          gl_FragColor = v_Color;
+          float fogFactor = clamp((u_FogDist.y - v_Dist) / (u_FogDist.y - u_FogDist.x), 0.0, 1.0);
+          vec3 color = mix(u_FogColor, vec3(v_Color), fogFactor);
+          gl_FragColor = vec4(color, v_Color.a);
         }`;
 
         // Initialize shaders
@@ -94,6 +105,11 @@ class ObjectLoader {
         this.u_Color = this.gl.getUniformLocation(this.program, 'u_Color');
         // 点光源
         this.u_LightPosition = this.gl.getUniformLocation(this.program, 'u_LightPosition');
+
+        // 雾化效果
+        this.u_Eye = this.gl.getUniformLocation(this.program, 'u_Eye');
+        this.u_FogColor = this.gl.getUniformLocation(this.program, 'u_FogColor')
+        this.u_FogDist = this.gl.getUniformLocation(this.program, 'u_FogDist')
 
         this.gl.useProgram(this.program);
         this.gl.program = this.program;
@@ -142,7 +158,7 @@ class ObjectLoader {
         this.g_objDoc = objDoc;
     }
 
-    render(timestamp, pointLight, openLight) {
+    render(timestamp, eye, pointLight, openLight) {
         this.gl.useProgram(this.program);
         this.gl.program = this.program;
 
@@ -167,6 +183,14 @@ class ObjectLoader {
             this.gl.uniform3fv(this.u_LightPosition, new Vector3(pointLight.position).elements);
             this.gl.uniform3fv(this.u_AmbientLight, new Vector3(pointLight.color).elements);
         }
+
+        // 雾化效果
+        let fogColor = new Float32Array([0.137, 0.231, 0.423]);
+        let fogDist = new Float32Array([55, 80]);
+        // eye = new Float32Array([25, 65, 35, 1.0]);
+        this.gl.uniform3fv(this.u_FogColor, fogColor); //雾的颜色
+        this.gl.uniform2fv(this.u_FogDist, fogDist); //雾化的起点和终点与视点间的距离 [起点距离,终点距离]
+        this.gl.uniform4fv(this.u_Eye, new Vector4(new Float32Array([eye.elements[0], eye.elements[1], eye.elements[2], 1.0])).elements); //视点
 
         this.g_normalMatrix.setInverseOf(this.g_modelMatrix);
         this.g_normalMatrix.transpose();

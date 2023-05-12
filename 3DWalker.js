@@ -44,7 +44,7 @@ class SceneLoader {
             }
 
             for (let loader of this.loaders) {
-                loader.render(timestamp, Camera.pointLight, Camera.state.openLight);
+                loader.render(timestamp, Camera.eye, Camera.pointLight, Camera.state.openLight);
             }
 
             requestAnimationFrame(render, this.gl);
@@ -79,7 +79,6 @@ class SceneLoader {
         cameraMap.set('f', 'openLight');
 
         cameraMap.forEach((val, key) => {
-            console.log(val)
             this.keyboardController.bind(key, {
                 on: (() => {
                     Camera.state[val] = 1;
